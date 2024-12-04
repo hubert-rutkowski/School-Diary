@@ -30,6 +30,7 @@ void Student::addNote(const Note& note) {
     notes.push_back(note);
 }
 
+
 void Student::addPraise(const Praise& praise) {
     praises.push_back(praise);
 }
