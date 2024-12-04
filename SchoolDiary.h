@@ -4,10 +4,9 @@
 #include <string>
 #include <vector>
 
-// Forward declarations
 class Teacher;
 class Parent;
-class SchoolDiary; // Dodane
+class SchoolDiary;
 
 class Grade {
 public:
@@ -139,7 +138,6 @@ public:
     std::string getStudentInfo(int id) const;
     std::string getTeacherInfo(const std::string& name) const;
 
-    // Nowe metody
     const std::vector<Student>& getStudents() const;
     const std::vector<Teacher>& getTeachers() const;
     const std::vector<Parent>& getParents() const;

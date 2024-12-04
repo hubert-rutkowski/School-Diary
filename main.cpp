@@ -12,27 +12,23 @@
 
 SchoolDiary diary;
 
-// Okna dla różnych ról
 Fl_Window* studentWindow;
 Fl_Window* teacherWindow;
 Fl_Window* parentWindow;
 Fl_Window* adminWindow;
 Fl_Window* loginWindow;
 
-// Funkcja pomocnicza do bezpiecznego pobierania wartości z Fl_Input
 std::string safeInputValue(Fl_Input* input) {
     const char* val = input->value();
     return val ? val : "";
 }
 
-// Callback dla wylogowania
 void logout_cb(Fl_Widget* widget, void* data) {
     Fl_Window* window = (Fl_Window*)data;
     window->hide();
     loginWindow->show();
 }
 
-// Callback dla logowania
 void login_cb(Fl_Widget* widget, void* data) {
     Fl_Input** inputs = (Fl_Input**)data;
     std::string username = safeInputValue(inputs[0]);
@@ -62,18 +58,14 @@ void login_cb(Fl_Widget* widget, void* data) {
     }
 }
 
-// Callbacki dla ucznia
 void viewGrades_cb(Fl_Widget* widget, void* data) {
     std::cout << "Viewing grades..." << std::endl;
-    // Dodaj logikę wyświetlania ocen
 }
 
 void viewNotes_cb(Fl_Widget* widget, void* data) {
     std::cout << "Viewing notes..." << std::endl;
-    // Dodaj logikę wyświetlania notatek
 }
 
-// Callbacki dla nauczyciela
 
 void submitGrade_cb(Fl_Widget* widget, void* data) {
     Fl_Input** inputs = (Fl_Input**)data;
@@ -92,7 +84,6 @@ void submitGrade_cb(Fl_Widget* widget, void* data) {
         return;
     }
 
-    // Znajdź ucznia na podstawie wybranego imienia i nazwiska
     Student* student = nullptr;
     for (auto& s : diary.getStudents()) {
         if ((s.name + " " + s.surname) == studentName) {
@@ -106,7 +97,7 @@ void submitGrade_cb(Fl_Widget* widget, void* data) {
         return;
     }
 
-    Grade grade{gradeValue, date, nullptr}; // Dodaj odpowiedniego nauczyciela
+    Grade grade{gradeValue, date, nullptr};
     student->addGrade(grade);
     std::cout << "Grade assigned: " << gradeStr << " on " << date << " to " << studentName << std::endl;
     gradeWindow->hide();
@@ -119,7 +110,6 @@ void assignGrade_cb(Fl_Widget* widget, void* data) {
     Fl_Input* dateInput = new Fl_Input(100, 80, 150, 25, "Date:");
     Fl_Choice* studentChoice = new Fl_Choice(100, 110, 150, 25, "Student:");
 
-    // Dodajemy uczniów do rozwijanego menu
     for (const auto& student : diary.getStudents()) {
         studentChoice->add((student.name + " " + student.surname).c_str());
     }
@@ -150,8 +140,7 @@ void addNote_cb(Fl_Widget* widget, void* data) {
         Fl_Input** inputs = (Fl_Input**)data;
         std::string noteContent = safeInputValue(inputs[0]);
         std::string date = safeInputValue(inputs[1]);
-        Note note{noteContent, date, nullptr}; // Dodaj odpowiedniego nauczyciela
-        // Dodaj logikę dodawania notatki do ucznia
+        Note note{noteContent, date, nullptr};
         std::cout << "Note added: " << noteContent << " on " << date << std::endl;
         ((Fl_Window*)inputs[2])->hide();
         delete[] inputs;
@@ -165,10 +154,8 @@ void addNote_cb(Fl_Widget* widget, void* data) {
     noteWindow->show();
 }
 
-// Callbacki dla rodzica
 void viewChildGrades_cb(Fl_Widget* widget, void* data) {
     std::cout << "Viewing child grades..." << std::endl;
-    // Dodaj logikę wyświetlania ocen dziecka
 }
 
 void addExcuse_cb(Fl_Widget* widget, void* data) {
@@ -182,8 +169,7 @@ void addExcuse_cb(Fl_Widget* widget, void* data) {
         Fl_Input** inputs = (Fl_Input**)data;
         std::string excuseContent = safeInputValue(inputs[0]);
         std::string date = safeInputValue(inputs[1]);
-        Excuse excuse{excuseContent, date, nullptr}; // Dodaj odpowiedniego rodzica
-        // Dodaj logikę dodawania usprawiedliwienia do ucznia
+        Excuse excuse{excuseContent, date, nullptr};
         std::cout << "Excuse added: " << excuseContent << " on " << date << std::endl;
         ((Fl_Window*)inputs[2])->hide();
         delete[] inputs;
@@ -197,7 +183,6 @@ void addExcuse_cb(Fl_Widget* widget, void* data) {
     excuseWindow->show();
 }
 
-// Callbacki admina
 void addStudent_cb(Fl_Widget* widget, void* data) {
     Fl_Input** inputs = (Fl_Input**)data;
     std::string username = safeInputValue(inputs[0]);
@@ -385,14 +370,12 @@ void createAdminWindow() {
     adminWindow = new Fl_Window(800, 800, "Admin Window");
     new Fl_Box(20, 40, 760, 30, "Welcome, Admin!");
 
-    // Inputy dla dodawania ucznia
     Fl_Input* studentUsername = new Fl_Input(150, 100, 150, 25, "Student Username:");
     Fl_Input* studentPassword = new Fl_Input(150, 130, 150, 25, "Student Password:");
     Fl_Input* studentName = new Fl_Input(150, 160, 150, 25, "Student Name:");
     Fl_Input* studentSurname = new Fl_Input(150, 190, 150, 25, "Student Surname:");
     Fl_Input* studentId = new Fl_Input(150, 220, 150, 25, "Student ID:");
 
-    // Dynamiczna alokacja tablicy
     Fl_Input** studentInputs = new Fl_Input*[5];
     studentInputs[0] = studentUsername;
     studentInputs[1] = studentPassword;
@@ -403,7 +386,6 @@ void createAdminWindow() {
     Fl_Button* addStudent = new Fl_Button(150, 250, 100, 25, "Add Student");
     addStudent->callback(addStudent_cb, studentInputs);
 
-    // Inputy dla dodawania nauczyciela
     Fl_Input* teacherUsername = new Fl_Input(150, 300, 150, 25, "Teacher Username:");
     Fl_Input* teacherPassword = new Fl_Input(150, 330, 150, 25, "Teacher Password:");
     Fl_Input* teacherName = new Fl_Input(150, 360, 150, 25, "Teacher Name:");
@@ -420,7 +402,6 @@ void createAdminWindow() {
     Fl_Button* addTeacher = new Fl_Button(150, 450, 100, 25, "Add Teacher");
     addTeacher->callback(addTeacher_cb, teacherInputs);
 
-    // Inputy dla dodawania rodzica
     Fl_Input* parentUsername = new Fl_Input(150, 500, 150, 25, "Parent Username:");
     Fl_Input* parentPassword = new Fl_Input(150, 530, 150, 25, "Parent Password:");
     Fl_Input* parentName = new Fl_Input(150, 560, 150, 25, "Parent Name:");
@@ -435,7 +416,6 @@ void createAdminWindow() {
     Fl_Button* addParent = new Fl_Button(150, 620, 100, 25, "Add Parent");
     addParent->callback(addParent_cb, parentInputs);
 
-    // Inputy dla przypisywania ucznia do rodzica
     Fl_Input* assignParentUsername = new Fl_Input(450, 100, 150, 25, "Parent Username:");
     Fl_Input* assignStudentUsername = new Fl_Input(450, 130, 150, 25, "Student Username:");
 
@@ -446,7 +426,6 @@ void createAdminWindow() {
     Fl_Button* assignParent = new Fl_Button(450, 160, 150, 25, "Assign Parent");
     assignParent->callback(assignParentToStudent_cb, assignParentInputs);
 
-    // Inputy dla przypisywania ucznia do nauczyciela
     Fl_Input* assignTeacherUsername = new Fl_Input(450, 200, 150, 25, "Teacher Username:");
     Fl_Input* assignStudentToTeacherUsername = new Fl_Input(450, 230, 150, 25, "Student Username:");
 
@@ -457,19 +436,15 @@ void createAdminWindow() {
     Fl_Button* assignTeacher = new Fl_Button(450, 260, 150, 25, "Assign Teacher");
     assignTeacher->callback(assignStudentToTeacher_cb, assignTeacherInputs);
 
-    // Przycisk do wyświetlania listy uczniów
     Fl_Button* showStudents = new Fl_Button(450, 300, 150, 25, "Show Students");
     showStudents->callback(showStudents_cb);
 
-    // Przycisk do wyświetlania listy nauczycieli
     Fl_Button* showTeachers = new Fl_Button(450, 330, 150, 25, "Show Teachers");
     showTeachers->callback(showTeachers_cb);
 
-    // Przycisk do wyświetlania listy rodziców
     Fl_Button* showParents = new Fl_Button(450, 360, 150, 25, "Show Parents");
     showParents->callback(showParents_cb);
 
-    // Przycisk do wyświetlania przypisań nauczycieli do uczniów
     Fl_Button* showTeacherAssignments = new Fl_Button(450, 390, 150, 25, "Show Teacher Assignments");
     showTeacherAssignments->callback([](Fl_Widget* widget, void* data) {
         const std::vector<Teacher>& teachers = diary.getTeachers();
@@ -489,7 +464,6 @@ void createAdminWindow() {
         assignmentsWindow->show();
     });
 
-    // Przycisk wylogowania
     Fl_Button* logoutButton = new Fl_Button(450, 420, 150, 25, "Logout");
     logoutButton->callback(logout_cb, adminWindow);
 
@@ -497,13 +471,11 @@ void createAdminWindow() {
 }
 
 int main(int argc, char** argv) {
-    // Tworzenie okna logowania
     loginWindow = new Fl_Window(400, 300, "Login");
     Fl_Input* usernameInput = new Fl_Input(150, 100, 150, 25, "Username:");
     Fl_Input* passwordInput = new Fl_Input(150, 150, 150, 25, "Password:");
     Fl_Button* loginButton = new Fl_Button(150, 200, 100, 25, "Login");
 
-    // Dynamiczna alokacja tablicy
     Fl_Input** loginInputs = new Fl_Input*[2];
     loginInputs[0] = usernameInput;
     loginInputs[1] = passwordInput;
@@ -513,7 +485,6 @@ int main(int argc, char** argv) {
     loginWindow->end();
     loginWindow->show(argc, argv);
 
-    // Tworzenie okien dla różnych ról
     createStudentWindow();
     createTeacherWindow();
     createParentWindow();
