@@ -87,10 +87,12 @@ public:
 
 class Parent : public User {
 public:
+    std::string name;
+    std::string surname;
     std::vector<Student*> children;
 
-    Parent(const std::string& username, const std::string& password)
-        : User(username, password, "Parent") {}
+    Parent(const std::string& username, const std::string& password, const std::string& name, const std::string& surname)
+        : User(username, password, "Parent"), name(name), surname(surname) {}
 
     void addExcuse(Student* student, const Excuse& excuse);
     void addChild(Student* student);

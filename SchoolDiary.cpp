@@ -329,10 +329,10 @@ void SchoolDiary::loadFromFile(const std::string& filename) {
         } else if (line == "Rodzice:") {
             while (std::getline(in, line) && !line.empty()) {
                 std::istringstream iss(line);
-                std::string usr, pass;
-                iss >> usr >> pass;
+                std::string usr, pass, nm, srn;
+                iss >> usr >> pass >> nm >> srn;
                 if (usr.empty()) break;
-                Parent parent(usr, pass);
+                Parent parent(usr, pass, nm, srn);
                 parents.push_back(parent);
             }
         }
@@ -398,7 +398,16 @@ void SchoolDiary::saveToFile(const std::string& filename) const {
         out << "\n";
     }
 
-    // Zapis rodziców i ewentualnie innych użytkowników...
+    // Zapis rodziców
+    out << parents.size() << "\n";
+    for(const auto& p : parents) {
+        out << p.getUsername() << " "
+            << p.getPassword() << " "
+            << p.name << " "
+            << p.surname << "\n";
+    }
+
+    // Zapis innych użytkowników...
     // ...existing code...
 }
 
@@ -468,7 +477,9 @@ void SchoolDiary::saveToDatabase(const std::string& filename) {
     out << "Rodzice:\n";
     for (const auto& p : parents) {
         out << p.getUsername() << " "
-            << p.getPassword() << "\n";
+            << p.getPassword() << " "
+            << p.name << " "
+            << p.surname << "\n";
     }
 
     out.close();

@@ -315,13 +315,15 @@ void addParent_cb(Fl_Widget* widget, void* data) {
     Fl_Input** inputs = (Fl_Input**)data;
     std::string username = safeInputValue(inputs[0]);
     std::string password = safeInputValue(inputs[1]);
+    std::string name = safeInputValue(inputs[2]);
+    std::string surname = safeInputValue(inputs[3]);
 
-    if (username.empty() || password.empty()) {
+    if (username.empty() || password.empty() || name.empty() || surname.empty()) {
         std::cerr << "All fields must be filled!" << std::endl;
         return;
     }
 
-    Parent parent(username, password);
+    Parent parent(username, password, name, surname);
     diary.addParent(parent);
     std::cout << "Parent added: " << username << std::endl;
     diary.saveToFile("database.txt");
@@ -366,7 +368,7 @@ void showParents_cb(Fl_Widget* widget, void* data) {
     display->buffer(textbuf);
     std::string list;
     for (const auto& parent : parents) {
-        list += "Username: " + parent.getUsername() + "\n";
+        list += "Username: " + parent.getUsername() + ", Name: " + parent.name + " " + parent.surname + "\n";
     }
     textbuf->text(list.c_str());
     parentsWindow->resizable(display);

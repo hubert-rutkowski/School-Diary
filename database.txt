@@ -9,4 +9,4 @@ Oceny:
 Notatki:
 Usprawiedliwienia:
 Rodzice:
-Parent1 123
+Parent1 123 Alex Babacki
