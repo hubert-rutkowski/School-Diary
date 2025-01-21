@@ -1,4 +1,4 @@
 # School-Diary
 
-g++ main.cpp SchoolDiary.cpp -lfltk -o SchoolDiaryApp
+`g++ *.cpp *.h -lfltk -o SchoolDiaryApp`
 ./SchoolDiaryApp
