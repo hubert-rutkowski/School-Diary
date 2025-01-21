@@ -9,6 +9,7 @@
 #include <iostream>
 #include <stdexcept>
 #include "SchoolDiary.h"
+#include <ctime> // Dodajemy ten include
 
 SchoolDiary diary;
 
@@ -26,6 +27,13 @@ static Fl_Box* parentWelcomeBox = nullptr;
 std::string safeInputValue(Fl_Input* input) {
     const char* val = input->value();
     return val ? val : "";
+}
+
+std::string getCurrentDate() {
+    std::time_t t = std::time(nullptr);
+    char buffer[11];
+    std::strftime(buffer, sizeof(buffer), "%d.%m.%Y", std::localtime(&t));
+    return std::string(buffer);
 }
 
 void logout_cb(Fl_Widget* widget, void* data) {
@@ -121,6 +129,7 @@ void addNote_cb(Fl_Widget* widget, void* data) {
         Fl_Window* noteWindow = new Fl_Window(300, 250, "Add Note");
         Fl_Input* noteInput = new Fl_Input(100, 50, 150, 25, "Note:");
         Fl_Input* dateInput = new Fl_Input(100, 80, 150, 25, "Date:");
+        dateInput->value(getCurrentDate().c_str()); // Ustawiamy bieżącą datę
         Fl_Choice* studentChoice = new Fl_Choice(100, 110, 150, 25, "Student:");
         for (const auto& student : teacher->students) {
             studentChoice->add((student->name + " " + student->surname).c_str());
@@ -157,6 +166,8 @@ void addNote_cb(Fl_Widget* widget, void* data) {
             Note note{content, date, teacher};
             teacher->addNoteToStudent(student, note);
             std::cout << "Note added for " << studentName << ": " << content << std::endl;
+            diary.saveToFile("database.txt");
+            diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
             noteWindow->hide();
             delete[] inputs;
         }, new Fl_Input*[5]{noteInput, dateInput, (Fl_Input*)studentChoice, (Fl_Input*)noteWindow, (Fl_Input*)teacher});
@@ -218,6 +229,7 @@ void assignGrade_cb(Fl_Widget* widget, void* data) {
         Fl_Window* gradeWindow = new Fl_Window(300, 250, "Assign Grade");
         Fl_Input* gradeInput = new Fl_Input(100, 50, 150, 25, "Grade:");
         Fl_Input* dateInput = new Fl_Input(100, 80, 150, 25, "Date:");
+        dateInput->value(getCurrentDate().c_str()); // Ustawiamy bieżącą datę
         Fl_Choice* studentChoice = new Fl_Choice(100, 110, 150, 25, "Student:");
 
         for (const auto& student : teacher->students) {
