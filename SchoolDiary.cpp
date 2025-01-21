@@ -1,6 +1,7 @@
 #include "SchoolDiary.h"
 #include <sstream>
 #include <fstream>
+#include <algorithm> // Dodajemy ten include
 
 // --- Grade Methods ---
 std::string Grade::getGradeInfo() const {
@@ -149,7 +150,11 @@ void Admin::assignStudentToTeacher(Student* student, Teacher* teacher) {
 // --- SchoolDiary Methods ---
 void SchoolDiary::addStudent(const Student& student) {
     Student copy = student;
-    copy.id = nextStudentId++;
+    int newId = 1;
+    while (std::any_of(students.begin(), students.end(), [newId](const Student& s) { return s.id == newId; })) {
+        ++newId;
+    }
+    copy.id = newId;
     students.push_back(copy);
 }
 
@@ -479,7 +484,11 @@ void SchoolDiary::saveToDatabase(const std::string& filename) {
         out << p.getUsername() << " "
             << p.getPassword() << " "
             << p.name << " "
-            << p.surname << "\n";
+            << p.surname;
+        for (auto* ch : p.children) {
+            out << " " << ch->id;
+        }
+        out << "\n";
     }
 
     out.close();
@@ -516,6 +525,39 @@ void SchoolDiary::loadAssignmentsFromDatabase(const std::string& filename) {
                     }
                     if (student) {
                         teacher->addStudent(student);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void SchoolDiary::loadParentAssignmentsFromDatabase(const std::string& filename) {
+    std::ifstream in(filename);
+    if (!in) return; // Brak pliku, pomiń
+
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line == "Rodzice:") {
+            while (std::getline(in, line) && !line.empty()) {
+                std::istringstream iss(line);
+                std::string usr, pass, nm, srn;
+                iss >> usr >> pass >> nm >> srn;
+                Parent* parent = findParentByUsername(usr);
+                if (!parent) continue;
+
+                int stId;
+                while (iss >> stId) {
+                    Student* student = nullptr;
+                    for (auto& s : students) {
+                        if (s.id == stId) {
+                            student = &s;
+                            break;
+                        }
+                    }
+                    if (student) {
+                        parent->addChild(student);
+                        student->setParent(parent);
                     }
                 }
             }
