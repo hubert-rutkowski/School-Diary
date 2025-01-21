@@ -18,6 +18,11 @@ Fl_Window* parentWindow;
 Fl_Window* adminWindow;
 Fl_Window* loginWindow;
 
+static User* currentUser = nullptr;
+static Fl_Box* studentWelcomeBox = nullptr;
+static Fl_Box* teacherWelcomeBox = nullptr;
+static Fl_Box* parentWelcomeBox = nullptr;
+
 std::string safeInputValue(Fl_Input* input) {
     const char* val = input->value();
     return val ? val : "";
@@ -38,34 +43,134 @@ void login_cb(Fl_Widget* widget, void* data) {
         std::cout << "Logged in as Admin" << std::endl;
         adminWindow->show();
         loginWindow->hide();
+        currentUser = nullptr; // Admin won't be used further for viewing personal data
     } else {
         User* user = nullptr;
         if ((user = diary.findStudentByUsername(username)) && user->getPassword() == password) {
-            std::cout << "Logged in as Student" << std::endl;
+            Student* s = dynamic_cast<Student*>(user);
             studentWindow->show();
             loginWindow->hide();
+            currentUser = s;
+            if (studentWelcomeBox) {
+                std::string labelStr = "Welcome " + s->name + " " + s->surname;
+                studentWelcomeBox->copy_label(labelStr.c_str());
+            }
         } else if ((user = diary.findTeacherByUsername(username)) && user->getPassword() == password) {
-            std::cout << "Logged in as Teacher" << std::endl;
+            Teacher* t = dynamic_cast<Teacher*>(user);
             teacherWindow->show();
             loginWindow->hide();
+            currentUser = t;
+            if (teacherWelcomeBox) {
+                std::string labelStr = "Welcome " + t->name + " " + t->surname;
+                teacherWelcomeBox->copy_label(labelStr.c_str());
+            }
         } else if ((user = diary.findParentByUsername(username)) && user->getPassword() == password) {
-            std::cout << "Logged in as Parent" << std::endl;
+            Parent* p = dynamic_cast<Parent*>(user);
             parentWindow->show();
             loginWindow->hide();
+            currentUser = p;
+            // Brak pól name/surname w Parent, wyświetl sam username lub zmodyfikuj klasę Parent
+            if (parentWelcomeBox) {
+                std::string labelStr = "Welcome " + p->getUsername();
+                parentWelcomeBox->copy_label(labelStr.c_str());
+            }
         } else {
             std::cout << "Login failed" << std::endl;
         }
     }
 }
 
+// Wyświetlanie ocen
 void viewGrades_cb(Fl_Widget* widget, void* data) {
-    std::cout << "Viewing grades..." << std::endl;
+    if (currentUser && currentUser->getRole() == "Student") {
+        Student* student = dynamic_cast<Student*>(currentUser);
+        Fl_Window* gradesWindow = new Fl_Window(400, 300, "Grades");
+        Fl_Text_Buffer* textbuf = new Fl_Text_Buffer();
+        Fl_Text_Display* display = new Fl_Text_Display(20, 20, 360, 260);
+        display->buffer(textbuf);
+        textbuf->text(student->getGradesInfo().c_str());
+        gradesWindow->resizable(display);
+        gradesWindow->end();
+        gradesWindow->show();
+    } else {
+        std::cout << "Viewing grades..." << std::endl;
+    }
 }
 
+// Wyświetlanie notatek
 void viewNotes_cb(Fl_Widget* widget, void* data) {
-    std::cout << "Viewing notes..." << std::endl;
+    if (currentUser && currentUser->getRole() == "Student") {
+        Student* student = dynamic_cast<Student*>(currentUser);
+        Fl_Window* notesWindow = new Fl_Window(400, 300, "Notes");
+        Fl_Text_Buffer* textbuf = new Fl_Text_Buffer();
+        Fl_Text_Display* display = new Fl_Text_Display(20, 20, 360, 260);
+        display->buffer(textbuf);
+        textbuf->text(student->getNotesInfo().c_str());
+        notesWindow->resizable(display);
+        notesWindow->end();
+        notesWindow->show();
+    } else {
+        std::cout << "Viewing notes..." << std::endl;
+    }
 }
 
+// Dodawanie notatki z wyborem studenta
+void addNote_cb(Fl_Widget* widget, void* data) {
+    if (currentUser && currentUser->getRole() == "Teacher") {
+        Teacher* teacher = dynamic_cast<Teacher*>(currentUser);
+        Fl_Window* noteWindow = new Fl_Window(300, 250, "Add Note");
+        Fl_Input* noteInput = new Fl_Input(100, 50, 150, 25, "Note:");
+        Fl_Input* dateInput = new Fl_Input(100, 80, 150, 25, "Date:");
+        Fl_Choice* studentChoice = new Fl_Choice(100, 110, 150, 25, "Student:");
+        for (const auto& s : diary.getStudents()) {
+            studentChoice->add((s.name + " " + s.surname).c_str());
+        }
+        Fl_Button* submitButton = new Fl_Button(50, 180, 80, 25, "Submit");
+        Fl_Button* cancelButton = new Fl_Button(150, 180, 80, 25, "Cancel");
+
+        submitButton->callback([](Fl_Widget* w, void* d) {
+            Fl_Input** inputs = (Fl_Input**)d;
+            Fl_Input* noteInput = inputs[0];
+            Fl_Input* dateInput = inputs[1];
+            Fl_Choice* studentChoice = (Fl_Choice*)inputs[2];
+            Fl_Window* noteWindow = (Fl_Window*)inputs[3];
+            Teacher* teacher = (Teacher*)inputs[4];
+
+            std::string content = safeInputValue(noteInput);
+            std::string date = safeInputValue(dateInput);
+            const char* studentName = studentChoice->text();
+            if (!studentName) {
+                std::cerr << "No student selected!" << std::endl;
+                return;
+            }
+            Student* student = nullptr;
+            for (auto& s : diary.getStudents()) {
+                if ((s.name + " " + s.surname) == studentName) {
+                    student = const_cast<Student*>(&s);
+                    break;
+                }
+            }
+            if (!student) {
+                std::cerr << "Student not found!" << std::endl;
+                return;
+            }
+            Note note{content, date, teacher};
+            teacher->addNoteToStudent(student, note);
+            std::cout << "Note added for " << studentName << ": " << content << std::endl;
+            noteWindow->hide();
+            delete[] inputs;
+        }, new Fl_Input*[5]{noteInput, dateInput, (Fl_Input*)studentChoice, (Fl_Input*)noteWindow, (Fl_Input*)teacher});
+
+        cancelButton->callback([](Fl_Widget* w, void* d) {
+            ((Fl_Window*)d)->hide();
+        }, noteWindow);
+
+        noteWindow->end();
+        noteWindow->show();
+    } else {
+        std::cout << "Add note..." << std::endl;
+    }
+}
 
 void submitGrade_cb(Fl_Widget* widget, void* data) {
     Fl_Input** inputs = (Fl_Input**)data;
@@ -97,7 +202,8 @@ void submitGrade_cb(Fl_Widget* widget, void* data) {
         return;
     }
 
-    Grade grade{gradeValue, date, nullptr};
+    Teacher* teacher = dynamic_cast<Teacher*>(currentUser);
+    Grade grade{gradeValue, date, teacher, teacher ? teacher->subject : ""};
     student->addGrade(grade);
     std::cout << "Grade assigned: " << gradeStr << " on " << date << " to " << studentName << std::endl;
     gradeWindow->hide();
@@ -129,30 +235,13 @@ void assignGrade_cb(Fl_Widget* widget, void* data) {
     gradeWindow->show();
 }
 
-void addNote_cb(Fl_Widget* widget, void* data) {
-    Fl_Window* noteWindow = new Fl_Window(300, 200, "Add Note");
-    Fl_Input* noteInput = new Fl_Input(100, 50, 150, 25, "Note:");
-    Fl_Input* dateInput = new Fl_Input(100, 80, 150, 25, "Date:");
-    Fl_Button* submitButton = new Fl_Button(50, 150, 80, 25, "Submit");
-    Fl_Button* cancelButton = new Fl_Button(150, 150, 80, 25, "Cancel");
-
-    submitButton->callback([](Fl_Widget* widget, void* data) {
-        Fl_Input** inputs = (Fl_Input**)data;
-        std::string noteContent = safeInputValue(inputs[0]);
-        std::string date = safeInputValue(inputs[1]);
-        Note note{noteContent, date, nullptr};
-        std::cout << "Note added: " << noteContent << " on " << date << std::endl;
-        ((Fl_Window*)inputs[2])->hide();
-        delete[] inputs;
-    }, new Fl_Input*[3]{noteInput, dateInput, (Fl_Input*)noteWindow});
-
-    cancelButton->callback([](Fl_Widget* widget, void* data) {
-        ((Fl_Window*)data)->hide();
-    }, noteWindow);
-
-    noteWindow->end();
-    noteWindow->show();
-}
+// ...existing code...
+// Usuń lub zakomentuj poniższą, starszą definicję addNote_cb:
+// void addNote_cb(Fl_Widget* widget, void* data) {
+//     Fl_Window* noteWindow = ...
+//     // ...existing code...
+// }
+// ...existing code...
 
 void viewChildGrades_cb(Fl_Widget* widget, void* data) {
     std::cout << "Viewing child grades..." << std::endl;
@@ -189,18 +278,17 @@ void addStudent_cb(Fl_Widget* widget, void* data) {
     std::string password = safeInputValue(inputs[1]);
     std::string name = safeInputValue(inputs[2]);
     std::string surname = safeInputValue(inputs[3]);
-    std::string id_str = safeInputValue(inputs[4]);
 
-    if (username.empty() || password.empty() || name.empty() || surname.empty() || id_str.empty()) {
+    if (username.empty() || password.empty() || name.empty() || surname.empty()) {
         std::cerr << "All fields must be filled!" << std::endl;
         return;
     }
 
-    int id = std::stoi(id_str);
-
-    Student student(username, password, name, surname, id);
+    Student student(username, password, name, surname, 0 /* dummy ID */);
     diary.addStudent(student);
     std::cout << "Student added: " << name << " " << surname << std::endl;
+    diary.saveToFile("database.txt");
+    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 }
 
 void addTeacher_cb(Fl_Widget* widget, void* data) {
@@ -219,6 +307,8 @@ void addTeacher_cb(Fl_Widget* widget, void* data) {
     Teacher teacher(username, password, name, surname, subject);
     diary.addTeacher(teacher);
     std::cout << "Teacher added: " << name << " " << surname << std::endl;
+    diary.saveToFile("database.txt");
+    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 }
 
 void addParent_cb(Fl_Widget* widget, void* data) {
@@ -234,6 +324,8 @@ void addParent_cb(Fl_Widget* widget, void* data) {
     Parent parent(username, password);
     diary.addParent(parent);
     std::cout << "Parent added: " << username << std::endl;
+    diary.saveToFile("database.txt");
+    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 }
 
 void showStudents_cb(Fl_Widget* widget, void* data) {
@@ -296,6 +388,8 @@ void assignParentToStudent_cb(Fl_Widget* widget, void* data) {
 
     student->setParent(parent);
     parent->addChild(student);
+    diary.saveToFile("database.txt");
+    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 
     std::cout << "Assigned parent " << parentUsername << " to student " << studentUsername << std::endl;
 }
@@ -314,13 +408,35 @@ void assignStudentToTeacher_cb(Fl_Widget* widget, void* data) {
     }
 
     teacher->addStudent(student);
+    diary.saveToFile("database.txt");
+    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 
     std::cout << "Assigned student " << studentUsername << " to teacher " << teacherUsername << std::endl;
 }
 
+void showTeacherAssignments_cb(Fl_Widget* widget, void* data) {
+    const std::vector<Teacher>& teachers = diary.getTeachers();
+    Fl_Window* assignmentsWindow = new Fl_Window(400, 300, "Teacher Assignments");
+    Fl_Text_Buffer* textbuf = new Fl_Text_Buffer();
+    Fl_Text_Display* display = new Fl_Text_Display(20, 20, 360, 260);
+    display->buffer(textbuf);
+    std::string list;
+    for (const auto& teacher : teachers) {
+        if (!teacher.students.empty()) {
+            list += "Teacher: " + teacher.name + " " + teacher.surname + "\n";
+            for (const auto& student : teacher.students) {
+                list += "  - Student: " + student->name + " " + student->surname + "\n";
+            }
+        }
+    }
+    textbuf->text(list.c_str());
+    assignmentsWindow->resizable(display);
+    assignmentsWindow->show();
+}
+
 void createStudentWindow() {
     studentWindow = new Fl_Window(400, 300, "Student Window");
-    new Fl_Box(20, 40, 360, 30, "Welcome, Student!");
+    studentWelcomeBox = new Fl_Box(20, 40, 360, 30, "Welcome, Student!");
 
     Fl_Button* viewGrades = new Fl_Button(150, 100, 100, 25, "View Grades");
     viewGrades->callback(viewGrades_cb);
@@ -336,7 +452,7 @@ void createStudentWindow() {
 
 void createTeacherWindow() {
     teacherWindow = new Fl_Window(400, 300, "Teacher Window");
-    new Fl_Box(20, 40, 360, 30, "Welcome, Teacher!");
+    teacherWelcomeBox = new Fl_Box(20, 40, 360, 30, "Welcome, Teacher!");
 
     Fl_Button* assignGrade = new Fl_Button(150, 100, 100, 25, "Assign Grade");
     assignGrade->callback(assignGrade_cb);
@@ -352,7 +468,7 @@ void createTeacherWindow() {
 
 void createParentWindow() {
     parentWindow = new Fl_Window(400, 300, "Parent Window");
-    new Fl_Box(20, 40, 360, 30, "Welcome, Parent!");
+    parentWelcomeBox = new Fl_Box(20, 40, 360, 30, "Welcome, Parent!");
 
     Fl_Button* viewChildGrades = new Fl_Button(150, 100, 100, 25, "View Child Grades");
     viewChildGrades->callback(viewChildGrades_cb);
@@ -446,23 +562,7 @@ void createAdminWindow() {
     showParents->callback(showParents_cb);
 
     Fl_Button* showTeacherAssignments = new Fl_Button(450, 390, 150, 25, "Show Teacher Assignments");
-    showTeacherAssignments->callback([](Fl_Widget* widget, void* data) {
-        const std::vector<Teacher>& teachers = diary.getTeachers();
-        Fl_Window* assignmentsWindow = new Fl_Window(400, 300, "Teacher Assignments");
-        Fl_Text_Buffer* textbuf = new Fl_Text_Buffer();
-        Fl_Text_Display* display = new Fl_Text_Display(20, 20, 360, 260);
-        display->buffer(textbuf);
-        std::string list;
-        for (const auto& teacher : teachers) {
-            list += "Teacher: " + teacher.name + " " + teacher.surname + "\n";
-            for (const auto& student : teacher.students) {
-                list += "  - Student: " + student->name + " " + student->surname + "\n";
-            }
-        }
-        textbuf->text(list.c_str());
-        assignmentsWindow->resizable(display);
-        assignmentsWindow->show();
-    });
+    showTeacherAssignments->callback(showTeacherAssignments_cb);
 
     Fl_Button* logoutButton = new Fl_Button(450, 420, 150, 25, "Logout");
     logoutButton->callback(logout_cb, adminWindow);
@@ -471,6 +571,11 @@ void createAdminWindow() {
 }
 
 int main(int argc, char** argv) {
+    try {
+        diary.loadFromFile("database.txt");
+    } catch(const std::exception& e) {
+        std::cerr << "Błąd przy wczytywaniu pliku: " << e.what() << std::endl;
+    }
     loginWindow = new Fl_Window(400, 300, "Login");
     Fl_Input* usernameInput = new Fl_Input(150, 100, 150, 25, "Username:");
     Fl_Input* passwordInput = new Fl_Input(150, 150, 150, 25, "Password:");
@@ -490,5 +595,8 @@ int main(int argc, char** argv) {
     createParentWindow();
     createAdminWindow();
 
-    return Fl::run();
+    int ret = Fl::run();
+    diary.saveToFile("database.txt");
+    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
+    return ret;
 }

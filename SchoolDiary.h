@@ -13,6 +13,8 @@ public:
     double value;
     std::string date;
     Teacher* teacher;
+    std::string subject; // Dodajemy pole na nazwę przedmiotu
+
     std::string getGradeInfo() const;
 };
 
@@ -76,6 +78,11 @@ public:
     void addPraise(const Praise& praise);
     void addExcuse(const Excuse& excuse);
     void setParent(Parent* parent);
+
+    std::string getGradesInfo() const;
+    std::string getNotesInfo() const;
+    std::string getPraisesInfo() const;
+    std::string getExcusesInfo() const;
 };
 
 class Parent : public User {
@@ -141,6 +148,15 @@ public:
     const std::vector<Student>& getStudents() const;
     const std::vector<Teacher>& getTeachers() const;
     const std::vector<Parent>& getParents() const;
+
+    void loadFromFile(const std::string& filename);
+    void saveToFile(const std::string& filename) const;
+    void saveToDatabase(const std::string& filename);
+
+    void assignStudentToTeacher(Student* student, Teacher* teacher);
+
+private:
+    int nextStudentId = 1;
 };
 
 #endif

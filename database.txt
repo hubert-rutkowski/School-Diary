@@ -1,0 +1,10 @@
+Nauczyciele:
+Teacher1 123 Alex Kowalski PE
+Teacher2 123 Barbara Buchwald Fizyka
+Studenci:
+Student1 123 Adam Babacki 1
+Student2 123 Alex Wysocki 2
+Oceny:
+Notatki:
+Usprawiedliwienia:
+Rodzice:

@@ -1,9 +1,13 @@
 #include "SchoolDiary.h"
 #include <sstream>
+#include <fstream>
 
 // --- Grade Methods ---
 std::string Grade::getGradeInfo() const {
-    return "Grade: " + std::to_string(value) + " | Date: " + date + " | Teacher: " + (teacher ? teacher->name : "N/A");
+    return "Grade: " + std::to_string(value) +
+           " | Date: " + date +
+           " | Teacher: " + (teacher ? (teacher->name + " " + teacher->surname) : "N/A") +
+           " | Subject: " + subject;
 }
 
 // --- Note Methods ---
@@ -30,7 +34,6 @@ void Student::addNote(const Note& note) {
     notes.push_back(note);
 }
 
-
 void Student::addPraise(const Praise& praise) {
     praises.push_back(praise);
 }
@@ -41,6 +44,42 @@ void Student::addExcuse(const Excuse& excuse) {
 
 void Student::setParent(Parent* parent) {
     this->parent = parent;
+}
+
+std::string Student::getGradesInfo() const {
+    std::ostringstream oss;
+    oss << "Grades:";
+    for (const auto& g : grades) {
+        oss << "\n  - " << g.getGradeInfo();
+    }
+    return oss.str();
+}
+
+std::string Student::getNotesInfo() const {
+    std::ostringstream oss;
+    oss << "Notes:";
+    for (const auto& n : notes) {
+        oss << "\n  - " << n.getNoteInfo();
+    }
+    return oss.str();
+}
+
+std::string Student::getPraisesInfo() const {
+    std::ostringstream oss;
+    oss << "Praises:";
+    for (const auto& p : praises) {
+        oss << "\n  - " << p.getPraiseInfo();
+    }
+    return oss.str();
+}
+
+std::string Student::getExcusesInfo() const {
+    std::ostringstream oss;
+    oss << "Excuses:";
+    for (const auto& e : excuses) {
+        oss << "\n  - " << e.getExcuseInfo();
+    }
+    return oss.str();
 }
 
 // --- Parent Methods ---
@@ -109,7 +148,9 @@ void Admin::assignStudentToTeacher(Student* student, Teacher* teacher) {
 
 // --- SchoolDiary Methods ---
 void SchoolDiary::addStudent(const Student& student) {
-    students.push_back(student);
+    Student copy = student;
+    copy.id = nextStudentId++;
+    students.push_back(copy);
 }
 
 void SchoolDiary::addTeacher(const Teacher& teacher) {
@@ -190,4 +231,251 @@ const std::vector<Teacher>& SchoolDiary::getTeachers() const {
 
 const std::vector<Parent>& SchoolDiary::getParents() const {
     return parents;
+}
+
+void SchoolDiary::loadFromFile(const std::string& filename) {
+    std::ifstream in(filename);
+    if(!in) return; // Brak pliku, pomiń
+
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line == "Studenci:") {
+            while (std::getline(in, line) && !line.empty() && line != "Oceny:") {
+                if (line.empty()) break;
+                std::istringstream iss(line);
+                std::string usr, pass, nm, srn;
+                int id;
+                iss >> usr >> pass >> nm >> srn >> id;
+                Student student(usr, pass, nm, srn, id);
+                students.push_back(student);
+            }
+            if (line == "Oceny:") {
+                in.seekg(-(static_cast<std::streamoff>(line.size() + 1)), std::ios::cur);
+            }
+        } else if (line == "Nauczyciele:") {
+            while (std::getline(in, line) && !line.empty() && line != "Studenci:") {
+                if (line.empty()) break;
+                std::istringstream iss(line);
+                std::string usr, pass, nm, srn, subj;
+                iss >> usr >> pass >> nm >> srn >> subj;
+                Teacher teacher(usr, pass, nm, srn, subj);
+
+                int stId;
+                while (iss >> stId) {
+                    for (auto& s : students) {
+                        if (s.id == stId) {
+                            teacher.addStudent(&s);
+                            break;
+                        }
+                    }
+                }
+                teachers.push_back(teacher);
+            }
+            if (line == "Studenci:") {
+                in.seekg(-(static_cast<std::streamoff>(line.size() + 1)), std::ios::cur);
+            }
+        } else if (line == "Oceny:") {
+            while (std::getline(in, line) && !line.empty() && line != "Notatki:") {
+                std::istringstream iss(line);
+                int sid;
+                double val;
+                std::string date, teacherUsr, subj;
+                iss >> sid >> val >> date >> teacherUsr >> subj;
+                Student* st = nullptr;
+                for (auto& tmp : students)
+                    if (tmp.id == sid) { st = &tmp; break; }
+                if (!st) continue;
+                Teacher* t = (teacherUsr != "N/A") ? findTeacherByUsername(teacherUsr) : nullptr;
+                Grade grade{val, date, t, subj};
+                st->addGrade(grade);
+            }
+            if (line == "Notatki:") {
+                in.seekg(-(static_cast<std::streamoff>(line.size() + 1)), std::ios::cur);
+            }
+        } else if (line == "Notatki:") {
+            while (std::getline(in, line) && !line.empty() && line != "Usprawiedliwienia:") {
+                std::istringstream iss(line);
+                int sid;
+                std::string content, date, teacherUsr;
+                iss >> sid >> content >> date >> teacherUsr;
+                Student* st = nullptr;
+                for (auto& tmp : students)
+                    if (tmp.id == sid) { st = &tmp; break; }
+                if (!st) continue;
+                Teacher* t = (teacherUsr != "N/A") ? findTeacherByUsername(teacherUsr) : nullptr;
+                Note note{content, date, t};
+                st->addNote(note);
+            }
+            if (line == "Usprawiedliwienia:") {
+                in.seekg(-(static_cast<std::streamoff>(line.size() + 1)), std::ios::cur);
+            }
+        } else if (line == "Usprawiedliwienia:") {
+            while (std::getline(in, line) && !line.empty() && line != "Rodzice:") {
+                std::istringstream iss(line);
+                int sid;
+                std::string content, date, parentUsr;
+                iss >> sid >> content >> date >> parentUsr;
+                Student* st = nullptr;
+                for (auto& tmp : students)
+                    if (tmp.id == sid) { st = &tmp; break; }
+                if (!st) continue;
+                Parent* p = (parentUsr != "N/A") ? findParentByUsername(parentUsr) : nullptr;
+                Excuse excuse{content, date, p};
+                st->addExcuse(excuse);
+            }
+            if (line == "Rodzice:") {
+                in.seekg(-(static_cast<std::streamoff>(line.size() + 1)), std::ios::cur);
+            }
+        } else if (line == "Rodzice:") {
+            while (std::getline(in, line) && !line.empty()) {
+                std::istringstream iss(line);
+                std::string usr, pass;
+                iss >> usr >> pass;
+                if (usr.empty()) break;
+                Parent parent(usr, pass);
+                parents.push_back(parent);
+            }
+        }
+    }
+}
+
+void SchoolDiary::saveToFile(const std::string& filename) const {
+    std::ofstream out(filename);
+
+    // Zapis studentów
+    out << students.size() << "\n";
+    for(const auto& s : students) {
+        out << s.getUsername() << " "
+            << s.getPassword() << " "
+            << s.name << " " << s.surname << " "
+            << s.id << "\n";
+
+        // Zapis ocen
+        out << s.grades.size() << "\n";
+        for (auto& g : s.grades) {
+            out << g.value << " "
+                << g.date << " "
+                << (g.teacher ? g.teacher->getUsername() : "N/A") << " "
+                << g.subject << "\n";
+        }
+
+        // Zapis notatek
+        out << s.notes.size() << "\n";
+        for (auto& n : s.notes) {
+            out << n.content << " "
+                << n.date << " "
+                << (n.teacher ? n.teacher->getUsername() : "N/A") << "\n";
+        }
+
+        // Zapis pochwał
+        out << s.praises.size() << "\n";
+        for (auto& p : s.praises) {
+            out << p.content << " "
+                << p.date << " "
+                << (p.teacher ? p.teacher->getUsername() : "N/A") << "\n";
+        }
+
+        // Zapis usprawiedliwień
+        out << s.excuses.size() << "\n";
+        for (auto& e : s.excuses) {
+            out << e.content << " "
+                << e.date << " "
+                << (e.parent ? e.parent->getUsername() : "N/A") << "\n";
+        }
+    }
+
+    // Zapis nauczycieli
+    out << teachers.size() << "\n";
+    for(const auto& t : teachers) {
+        out << t.getUsername() << " "
+            << t.getPassword() << " "
+            << t.name << " "
+            << t.surname << " "
+            << t.subject;
+        for (auto* st : t.students) {
+            out << " " << st->id; 
+        }
+        out << "\n";
+    }
+
+    // Zapis rodziców i ewentualnie innych użytkowników...
+    // ...existing code...
+}
+
+void SchoolDiary::saveToDatabase(const std::string& filename) {
+    std::ofstream out(filename);
+    if (!out) return;
+
+    // Zapis nauczycieli
+    out << "Nauczyciele:\n";
+    for (const auto& t : teachers) {
+        out << t.getUsername() << " "
+            << t.getPassword() << " "
+            << t.name << " "
+            << t.surname << " "
+            << t.subject;
+        for (auto* st : t.students) {
+            out << " " << st->id; 
+        }
+        out << "\n";
+    }
+
+    // Zapis studentów
+    out << "Studenci:\n";
+    for (const auto& s : students) {
+        out << s.getUsername() << " "
+            << s.getPassword() << " "
+            << s.name << " "
+            << s.surname << " "
+            << s.id << "\n";
+    }
+
+    // Zapis ocen
+    out << "Oceny:\n";
+    for (const auto& s : students) {
+        for (const auto& g : s.grades) {
+            out << s.id << " "
+                << g.value << " "
+                << g.date << " "
+                << (g.teacher ? g.teacher->getUsername() : "N/A") << " "
+                << g.subject << "\n";
+        }
+    }
+
+    // Zapis notatek
+    out << "Notatki:\n";
+    for (const auto& s : students) {
+        for (const auto& n : s.notes) {
+            out << s.id << " "
+                << n.content << " "
+                << n.date << " "
+                << (n.teacher ? n.teacher->getUsername() : "N/A") << "\n";
+        }
+    }
+
+    // Zapis usprawiedliwień
+    out << "Usprawiedliwienia:\n";
+    for (const auto& s : students) {
+        for (const auto& e : s.excuses) {
+            out << s.id << " "
+                << e.content << " "
+                << e.date << " "
+                << (e.parent ? e.parent->getUsername() : "N/A") << "\n";
+        }
+    }
+
+    // Zapis rodziców
+    out << "Rodzice:\n";
+    for (const auto& p : parents) {
+        out << p.getUsername() << " "
+            << p.getPassword() << "\n";
+    }
+
+    out.close();
+}
+
+void SchoolDiary::assignStudentToTeacher(Student* student, Teacher* teacher) {
+    if (student && teacher) {
+        teacher->addStudent(student);
+    }
 }
