@@ -152,6 +152,7 @@ public:
     void loadFromFile(const std::string& filename);
     void saveToFile(const std::string& filename) const;
     void saveToDatabase(const std::string& filename);
+    void loadAssignmentsFromDatabase(const std::string& filename);
 
     void assignStudentToTeacher(Student* student, Teacher* teacher);
 

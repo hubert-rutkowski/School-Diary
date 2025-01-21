@@ -573,6 +573,7 @@ void createAdminWindow() {
 int main(int argc, char** argv) {
     try {
         diary.loadFromFile("database.txt");
+        diary.loadAssignmentsFromDatabase("/root/code/project/School-Diary/database.txt");
     } catch(const std::exception& e) {
         std::cerr << "Błąd przy wczytywaniu pliku: " << e.what() << std::endl;
     }

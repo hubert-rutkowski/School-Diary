@@ -479,3 +479,35 @@ void SchoolDiary::assignStudentToTeacher(Student* student, Teacher* teacher) {
         teacher->addStudent(student);
     }
 }
+
+void SchoolDiary::loadAssignmentsFromDatabase(const std::string& filename) {
+    std::ifstream in(filename);
+    if (!in) return; // Brak pliku, pomiń
+
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line == "Nauczyciele:") {
+            while (std::getline(in, line) && !line.empty() && line != "Studenci:") {
+                std::istringstream iss(line);
+                std::string usr, pass, nm, srn, subj;
+                iss >> usr >> pass >> nm >> srn >> subj;
+                Teacher* teacher = findTeacherByUsername(usr);
+                if (!teacher) continue;
+
+                int stId;
+                while (iss >> stId) {
+                    Student* student = nullptr;
+                    for (auto& s : students) {
+                        if (s.id == stId) {
+                            student = &s;
+                            break;
+                        }
+                    }
+                    if (student) {
+                        teacher->addStudent(student);
+                    }
+                }
+            }
+        }
+    }
+}
