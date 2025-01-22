@@ -2,6 +2,7 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm> // Dodajemy ten include
+#include <iostream>
 
 // --- Grade Methods ---
 std::string Grade::getGradeInfo() const {
@@ -290,7 +291,7 @@ void SchoolDiary::loadFromFile(const std::string& filename) {
                 for (auto& tmp : students)
                     if (tmp.id == sid) { st = &tmp; break; }
                 if (!st) continue;
-                Teacher* t = (teacherUsr != "N/A") ? findTeacherByUsername(teacherUsr) : nullptr;
+                Teacher* t = findTeacherByUsername(teacherUsr);
                 Grade grade{val, date, t, subj};
                 st->addGrade(grade);
             }
@@ -307,7 +308,7 @@ void SchoolDiary::loadFromFile(const std::string& filename) {
                 for (auto& tmp : students)
                     if (tmp.id == sid) { st = &tmp; break; }
                 if (!st) continue;
-                Teacher* t = (teacherUsr != "N/A") ? findTeacherByUsername(teacherUsr) : nullptr;
+                Teacher* t = findTeacherByUsername(teacherUsr);
                 Note note{content, date, t};
                 st->addNote(note);
             }
@@ -324,7 +325,7 @@ void SchoolDiary::loadFromFile(const std::string& filename) {
                 for (auto& tmp : students)
                     if (tmp.id == sid) { st = &tmp; break; }
                 if (!st) continue;
-                Parent* p = (parentUsr != "N/A") ? findParentByUsername(parentUsr) : nullptr;
+                Parent* p = findParentByUsername(parentUsr);
                 Excuse excuse{content, date, p};
                 st->addExcuse(excuse);
             }
@@ -346,79 +347,6 @@ void SchoolDiary::loadFromFile(const std::string& filename) {
 
 void SchoolDiary::saveToFile(const std::string& filename) const {
     std::ofstream out(filename);
-
-    // Zapis studentów
-    out << students.size() << "\n";
-    for(const auto& s : students) {
-        out << s.getUsername() << " "
-            << s.getPassword() << " "
-            << s.name << " " << s.surname << " "
-            << s.id << "\n";
-
-        // Zapis ocen
-        out << s.grades.size() << "\n";
-        for (auto& g : s.grades) {
-            out << g.value << " "
-                << g.date << " "
-                << (g.teacher ? g.teacher->getUsername() : "N/A") << " "
-                << g.subject << "\n";
-        }
-
-        // Zapis notatek
-        out << s.notes.size() << "\n";
-        for (auto& n : s.notes) {
-            out << n.content << " "
-                << n.date << " "
-                << (n.teacher ? n.teacher->getUsername() : "N/A") << "\n";
-        }
-
-        // Zapis pochwał
-        out << s.praises.size() << "\n";
-        for (auto& p : s.praises) {
-            out << p.content << " "
-                << p.date << " "
-                << (p.teacher ? p.teacher->getUsername() : "N/A") << "\n";
-        }
-
-        // Zapis usprawiedliwień
-        out << s.excuses.size() << "\n";
-        for (auto& e : s.excuses) {
-            out << e.content << " "
-                << e.date << " "
-                << (e.parent ? e.parent->getUsername() : "N/A") << "\n";
-        }
-    }
-
-    // Zapis nauczycieli
-    out << teachers.size() << "\n";
-    for(const auto& t : teachers) {
-        out << t.getUsername() << " "
-            << t.getPassword() << " "
-            << t.name << " "
-            << t.surname << " "
-            << t.subject;
-        for (auto* st : t.students) {
-            out << " " << st->id; 
-        }
-        out << "\n";
-    }
-
-    // Zapis rodziców
-    out << parents.size() << "\n";
-    for(const auto& p : parents) {
-        out << p.getUsername() << " "
-            << p.getPassword() << " "
-            << p.name << " "
-            << p.surname << "\n";
-    }
-
-    // Zapis innych użytkowników...
-    // ...existing code...
-}
-
-void SchoolDiary::saveToDatabase(const std::string& filename) {
-    std::ofstream out(filename);
-    if (!out) return;
 
     // Zapis nauczycieli
     out << "Nauczyciele:\n";
@@ -451,7 +379,7 @@ void SchoolDiary::saveToDatabase(const std::string& filename) {
             out << s.id << " "
                 << g.value << " "
                 << g.date << " "
-                << (g.teacher ? g.teacher->getUsername() : "N/A") << " "
+                << (g.teacher ? g.teacher->getUsername() : "") << " "
                 << g.subject << "\n";
         }
     }
@@ -463,7 +391,7 @@ void SchoolDiary::saveToDatabase(const std::string& filename) {
             out << s.id << " "
                 << n.content << " "
                 << n.date << " "
-                << (n.teacher ? n.teacher->getUsername() : "N/A") << "\n";
+                << (n.teacher ? n.teacher->getUsername() : "") << "\n";
         }
     }
 
@@ -474,7 +402,7 @@ void SchoolDiary::saveToDatabase(const std::string& filename) {
             out << s.id << " "
                 << e.content << " "
                 << e.date << " "
-                << (e.parent ? e.parent->getUsername() : "N/A") << "\n";
+                << (e.parent ? e.parent->getUsername() : "") << "\n";
         }
     }
 
@@ -555,9 +483,16 @@ void SchoolDiary::loadParentAssignmentsFromDatabase(const std::string& filename)
                             break;
                         }
                     }
-                    if (student) {
+                    if (student && parent) {
                         parent->addChild(student);
                         student->setParent(parent);
+                    } else {
+                        if (!student) {
+                            std::cerr << "Błąd: Nie można wczytać danych studenta o ID: " << stId << std::endl;
+                        }
+                        if (!parent) {
+                            std::cerr << "Błąd: Nie można wczytać danych rodzica o nazwie użytkownika: " << usr << std::endl;
+                        }
                     }
                 }
             }

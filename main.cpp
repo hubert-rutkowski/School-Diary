@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include "SchoolDiary.h"
 #include <ctime> // Dodajemy ten include
+#include <sstream> // Dodajemy ten include
 
 SchoolDiary diary;
 
@@ -167,7 +168,6 @@ void addNote_cb(Fl_Widget* widget, void* data) {
             teacher->addNoteToStudent(student, note);
             std::cout << "Note added for " << studentName << ": " << content << std::endl;
             diary.saveToFile("database.txt");
-            diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
             noteWindow->hide();
             delete[] inputs;
         }, new Fl_Input*[5]{noteInput, dateInput, (Fl_Input*)studentChoice, (Fl_Input*)noteWindow, (Fl_Input*)teacher});
@@ -218,7 +218,6 @@ void submitGrade_cb(Fl_Widget* widget, void* data) {
     student->addGrade(grade);
     std::cout << "Grade assigned: " << gradeStr << " on " << date << " to " << studentName << std::endl;
     diary.saveToFile("database.txt");
-    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
     gradeWindow->hide();
     delete[] inputs;
 }
@@ -256,33 +255,97 @@ void assignGrade_cb(Fl_Widget* widget, void* data) {
 
 // ...existing code...
 
+void viewExcuses_cb(Fl_Widget* widget, void* data) {
+    if (currentUser && currentUser->getRole() == "Teacher") {
+        Teacher* teacher = dynamic_cast<Teacher*>(currentUser);
+        Fl_Window* excusesWindow = new Fl_Window(400, 300, "Excuses");
+        Fl_Text_Buffer* textbuf = new Fl_Text_Buffer();
+        Fl_Text_Display* display = new Fl_Text_Display(20, 20, 360, 260);
+        display->buffer(textbuf);
+
+        std::ostringstream oss;
+        oss << "Excuses:";
+        for (const auto& student : teacher->students) {
+            for (const auto& excuse : student->excuses) {
+                oss << "\n  - Student: " << student->name << " " << student->surname
+                    << " | Excuse: " << excuse.content
+                    << " | Date: " << excuse.date
+                    << " | Parent: " << (excuse.parent ? excuse.parent->name + " " + excuse.parent->surname : "N/A");
+            }
+        }
+        textbuf->text(oss.str().c_str());
+
+        excusesWindow->resizable(display);
+        excusesWindow->end();
+        excusesWindow->show();
+    } else {
+        std::cout << "Viewing excuses..." << std::endl;
+    }
+}
+
+// ...existing code...
+
 void viewChildGrades_cb(Fl_Widget* widget, void* data) {
     std::cout << "Viewing child grades..." << std::endl;
 }
 
 void addExcuse_cb(Fl_Widget* widget, void* data) {
-    Fl_Window* excuseWindow = new Fl_Window(300, 200, "Add Excuse");
-    Fl_Input* excuseInput = new Fl_Input(100, 50, 150, 25, "Excuse:");
-    Fl_Input* dateInput = new Fl_Input(100, 80, 150, 25, "Date:");
-    Fl_Button* submitButton = new Fl_Button(50, 150, 80, 25, "Submit");
-    Fl_Button* cancelButton = new Fl_Button(150, 150, 80, 25, "Cancel");
+    if (currentUser && currentUser->getRole() == "Parent") {
+        Parent* parent = dynamic_cast<Parent*>(currentUser);
+        Fl_Window* excuseWindow = new Fl_Window(300, 250, "Add Excuse");
+        Fl_Input* excuseInput = new Fl_Input(100, 50, 150, 25, "Excuse:");
+        Fl_Input* dateInput = new Fl_Input(100, 80, 150, 25, "Date:");
+        dateInput->value(getCurrentDate().c_str()); // Ustawiamy bieżącą datę
+        Fl_Choice* studentChoice = new Fl_Choice(100, 110, 150, 25, "Student:");
+        for (const auto& student : parent->children) {
+            studentChoice->add((student->name + " " + student->surname).c_str());
+        }
+        Fl_Button* submitButton = new Fl_Button(50, 180, 80, 25, "Submit");
+        Fl_Button* cancelButton = new Fl_Button(150, 180, 80, 25, "Cancel");
 
-    submitButton->callback([](Fl_Widget* widget, void* data) {
-        Fl_Input** inputs = (Fl_Input**)data;
-        std::string excuseContent = safeInputValue(inputs[0]);
-        std::string date = safeInputValue(inputs[1]);
-        Excuse excuse{excuseContent, date, nullptr};
-        std::cout << "Excuse added: " << excuseContent << " on " << date << std::endl;
-        ((Fl_Window*)inputs[2])->hide();
-        delete[] inputs;
-    }, new Fl_Input*[3]{excuseInput, dateInput, (Fl_Input*)excuseWindow});
+        submitButton->callback([](Fl_Widget* w, void* d) {
+            Fl_Input** inputs = (Fl_Input**)d;
+            Fl_Input* excuseInput = inputs[0];
+            Fl_Input* dateInput = inputs[1];
+            Fl_Choice* studentChoice = (Fl_Choice*)inputs[2];
+            Fl_Window* excuseWindow = (Fl_Window*)inputs[3];
+            Parent* parent = (Parent*)inputs[4];
 
-    cancelButton->callback([](Fl_Widget* widget, void* data) {
-        ((Fl_Window*)data)->hide();
-    }, excuseWindow);
+            std::string content = safeInputValue(excuseInput);
+            std::string date = safeInputValue(dateInput);
+            const char* studentName = studentChoice->text();
+            if (!studentName) {
+                std::cerr << "No student selected!" << std::endl;
+                return;
+            }
+            Student* student = nullptr;
+            for (auto& s : parent->children) {
+                if ((s->name + " " + s->surname) == studentName) {
+                    student = s;
+                    break;
+                }
+            }
+            if (!student) {
+                std::cerr << "Student not found!" << std::endl;
+                return;
+            }
+            Excuse excuse{content, date, parent};
+            parent->addExcuse(student, excuse);
+            std::cout << "Excuse added for " << studentName << ": " << content << std::endl;
+            diary.saveToFile("database.txt");
+            excuseWindow->hide();
+            delete[] inputs;
+        }, new Fl_Input*[5]{excuseInput, dateInput, (Fl_Input*)studentChoice, (Fl_Input*)excuseWindow, (Fl_Input*)parent});
 
-    excuseWindow->end();
-    excuseWindow->show();
+        cancelButton->callback([](Fl_Widget* w, void* d) {
+            ((Fl_Window*)d)->hide();
+        }, excuseWindow);
+
+        excuseWindow->end();
+        excuseWindow->show();
+    } else {
+        std::cout << "Add excuse..." << std::endl;
+    }
 }
 
 void addStudent_cb(Fl_Widget* widget, void* data) {
@@ -301,7 +364,6 @@ void addStudent_cb(Fl_Widget* widget, void* data) {
     diary.addStudent(student);
     std::cout << "Student added: " << name << " " << surname << std::endl;
     diary.saveToFile("database.txt");
-    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 }
 
 void addTeacher_cb(Fl_Widget* widget, void* data) {
@@ -321,7 +383,6 @@ void addTeacher_cb(Fl_Widget* widget, void* data) {
     diary.addTeacher(teacher);
     std::cout << "Teacher added: " << name << " " << surname << std::endl;
     diary.saveToFile("database.txt");
-    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 }
 
 void addParent_cb(Fl_Widget* widget, void* data) {
@@ -340,7 +401,6 @@ void addParent_cb(Fl_Widget* widget, void* data) {
     diary.addParent(parent);
     std::cout << "Parent added: " << username << std::endl;
     diary.saveToFile("database.txt");
-    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 }
 
 void showStudents_cb(Fl_Widget* widget, void* data) {
@@ -404,7 +464,6 @@ void assignParentToStudent_cb(Fl_Widget* widget, void* data) {
     student->setParent(parent);
     parent->addChild(student);
     diary.saveToFile("database.txt");
-    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 
     std::cout << "Assigned parent " << parentUsername << " to student " << studentUsername << std::endl;
 }
@@ -424,7 +483,6 @@ void assignStudentToTeacher_cb(Fl_Widget* widget, void* data) {
 
     teacher->addStudent(student);
     diary.saveToFile("database.txt");
-    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
 
     std::cout << "Assigned student " << studentUsername << " to teacher " << teacherUsername << std::endl;
 }
@@ -495,7 +553,10 @@ void createTeacherWindow() {
     Fl_Button* addNote = new Fl_Button(150, 150, 100, 25, "Add Note");
     addNote->callback(addNote_cb);
 
-    Fl_Button* logoutButton = new Fl_Button(150, 200, 100, 25, "Logout");
+    Fl_Button* viewExcuses = new Fl_Button(150, 200, 100, 25, "View Excuses");
+    viewExcuses->callback(viewExcuses_cb);
+
+    Fl_Button* logoutButton = new Fl_Button(150, 250, 100, 25, "Logout");
     logoutButton->callback(logout_cb, teacherWindow);
 
     teacherWindow->end();
@@ -609,8 +670,8 @@ void createAdminWindow() {
 int main(int argc, char** argv) {
     try {
         diary.loadFromFile("database.txt");
-        diary.loadAssignmentsFromDatabase("/root/code/project/School-Diary/database.txt");
-        diary.loadParentAssignmentsFromDatabase("/root/code/project/School-Diary/database.txt");
+        diary.loadAssignmentsFromDatabase("database.txt");
+        diary.loadParentAssignmentsFromDatabase("database.txt");
     } catch(const std::exception& e) {
         std::cerr << "Błąd przy wczytywaniu pliku: " << e.what() << std::endl;
     }
@@ -635,6 +696,5 @@ int main(int argc, char** argv) {
 
     int ret = Fl::run();
     diary.saveToFile("database.txt");
-    diary.saveToDatabase("/root/code/project/School-Diary/database.txt");
     return ret;
 }
