@@ -269,8 +269,7 @@ void viewExcuses_cb(Fl_Widget* widget, void* data) {
             for (const auto& excuse : student->excuses) {
                 oss << "\n  - Student: " << student->name << " " << student->surname
                     << " | Excuse: " << excuse.content
-                    << " | Date: " << excuse.date
-                    << " | Parent: " << (excuse.parent ? excuse.parent->name + " " + excuse.parent->surname : "N/A");
+                    << " | Date: " << excuse.date;
             }
         }
         textbuf->text(oss.str().c_str());
@@ -286,7 +285,27 @@ void viewExcuses_cb(Fl_Widget* widget, void* data) {
 // ...existing code...
 
 void viewChildGrades_cb(Fl_Widget* widget, void* data) {
-    std::cout << "Viewing child grades..." << std::endl;
+    if (currentUser && currentUser->getRole() == "Parent") {
+        Parent* parent = dynamic_cast<Parent*>(currentUser);
+        Fl_Window* gradesWindow = new Fl_Window(400, 300, "Child Grades");
+        Fl_Text_Buffer* textbuf = new Fl_Text_Buffer();
+        Fl_Text_Display* display = new Fl_Text_Display(20, 20, 360, 260);
+        display->buffer(textbuf);
+
+        std::ostringstream oss;
+        oss << "Child Grades:";
+        for (auto& child : parent->children) {
+            oss << "\n\n" << child->name << " " << child->surname << "\n"
+                << child->getGradesInfo();
+        }
+
+        textbuf->text(oss.str().c_str());
+        gradesWindow->resizable(display);
+        gradesWindow->end();
+        gradesWindow->show();
+    } else {
+        std::cout << "Viewing child grades..." << std::endl;
+    }
 }
 
 void addExcuse_cb(Fl_Widget* widget, void* data) {

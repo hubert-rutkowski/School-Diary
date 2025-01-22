@@ -24,7 +24,7 @@ std::string Praise::getPraiseInfo() const {
 
 // --- Excuse Methods ---
 std::string Excuse::getExcuseInfo() const {
-    return "Excuse: " + content + " | Date: " + date + " | Parent: " + (parent ? parent->getUsername() : "N/A");
+    return "Excuse: " + content + " | Date: " + date;
 }
 
 // --- Student Methods ---

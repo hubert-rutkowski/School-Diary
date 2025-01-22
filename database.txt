@@ -14,6 +14,7 @@ Oceny:
 2 4 23.01.2025 Teacher2 Fizyka
 Notatki:
 Usprawiedliwienia:
-1 Hej 21.01.2025 Parent1
+1 Choroba 21.01.2025 
+1 Zepsuty_tramwaj 21.01.2025 
 Rodzice:
 Parent1 123 Alex Babacki 1
