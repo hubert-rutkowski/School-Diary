@@ -13,9 +13,12 @@ public:
     double value;
     std::string date;
     Teacher* teacher;
-    std::string subject; // Dodajemy pole na nazwę przedmiotu
+    std::string subject;
 
     std::string getGradeInfo() const;
+
+    Grade(double val, const std::string& d, Teacher* t, const std::string& sub)
+        : value(val), date(d), teacher(t), subject(sub) {}
 };
 
 class Note {

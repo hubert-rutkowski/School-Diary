@@ -9,8 +9,12 @@
 #include <iostream>
 #include <stdexcept>
 #include "SchoolDiary.h"
-#include <ctime> // Dodajemy ten include
-#include <sstream> // Dodajemy ten include
+#include <ctime>
+#include <sstream>
+#include <X11/X.h>
+#undef None
+#undef Bool
+#include <gtest/gtest.h>
 
 SchoolDiary diary;
 
@@ -52,7 +56,7 @@ void login_cb(Fl_Widget* widget, void* data) {
         std::cout << "Logged in as Admin" << std::endl;
         adminWindow->show();
         loginWindow->hide();
-        currentUser = nullptr; // Admin won't be used further for viewing personal data
+        currentUser = nullptr;
     } else {
         User* user = nullptr;
         if ((user = diary.findStudentByUsername(username)) && user->getPassword() == password) {
@@ -78,7 +82,6 @@ void login_cb(Fl_Widget* widget, void* data) {
             parentWindow->show();
             loginWindow->hide();
             currentUser = p;
-            // Brak pól name/surname w Parent, wyświetl sam username lub zmodyfikuj klasę Parent
             if (parentWelcomeBox) {
                 std::string labelStr = "Welcome " + p->getUsername();
                 parentWelcomeBox->copy_label(labelStr.c_str());
@@ -253,8 +256,6 @@ void assignGrade_cb(Fl_Widget* widget, void* data) {
     }
 }
 
-// ...existing code...
-
 void viewExcuses_cb(Fl_Widget* widget, void* data) {
     if (currentUser && currentUser->getRole() == "Teacher") {
         Teacher* teacher = dynamic_cast<Teacher*>(currentUser);
@@ -281,8 +282,6 @@ void viewExcuses_cb(Fl_Widget* widget, void* data) {
         std::cout << "Viewing excuses..." << std::endl;
     }
 }
-
-// ...existing code...
 
 void viewChildGrades_cb(Fl_Widget* widget, void* data) {
     if (currentUser && currentUser->getRole() == "Parent") {
@@ -686,7 +685,109 @@ void createAdminWindow() {
     adminWindow->end();
 }
 
+// Testy
+TEST(SchoolDiaryTest, AddStudentTest) {
+    SchoolDiary d;
+    Student s("TestUsername", "TestPassword", "Name", "Surname", 0);
+    d.addStudent(s);
+    EXPECT_NE(nullptr, d.findStudentByUsername("TestUsername"));
+    auto found = d.findStudentByUsername("TestUsername");
+    EXPECT_EQ(s.getUsername(), found->getUsername());
+}
+
+TEST(SchoolDiaryTest, AddTeacherTest) {
+    SchoolDiary d;
+    Teacher t("TeacherUsername", "TeacherPassword", "Jon", "Doe", "Math");
+    d.addTeacher(t);
+    auto found = d.findTeacherByUsername("TeacherUsername");
+    EXPECT_NE(nullptr, found);
+    EXPECT_EQ(t.getUsername(), found->getUsername());
+}
+
+TEST(SchoolDiaryTest, AddParentTest) {
+    SchoolDiary d;
+    Parent p("ParentUsername", "ParentPassword", "Mary", "Smith");
+    d.addParent(p);
+    auto found = d.findParentByUsername("ParentUsername");
+    EXPECT_NE(nullptr, found);
+    EXPECT_EQ(p.getUsername(), found->getUsername());
+}
+
+TEST(SchoolDiaryTest, AddGradeTest) {
+    SchoolDiary d;
+    Teacher t("TeachUsername", "TeachPass", "John", "Doe", "Math");
+    Student s("StudUsername", "StudPass", "Jane", "Smith", 0);
+    d.addTeacher(t);
+    d.addStudent(s);
+    auto* foundT = d.findTeacherByUsername("TeachUsername");
+    auto* foundS = d.findStudentByUsername("StudUsername");
+    Grade g(5.0, "01.02.2025", foundT, "Math");
+    foundS->addGrade(g);
+    EXPECT_TRUE(foundS->getGradesInfo().find("5.0") != std::string::npos);
+}
+
+TEST(SchoolDiaryTest, AddNoteTest) {
+    SchoolDiary d;
+    Teacher t("NTUser", "NTPass", "Mark", "Brown", "History");
+    Student s("SNUser", "SNPass", "Tim", "Cook", 0);
+    d.addTeacher(t);
+    d.addStudent(s);
+    auto* foundT = d.findTeacherByUsername("NTUser");
+    auto* foundS = d.findStudentByUsername("SNUser");
+    Note n{"SampleNote", "02.02.2025", foundT};
+    foundT->addNoteToStudent(foundS, n);
+    EXPECT_TRUE(foundS->getNotesInfo().find("SampleNote") != std::string::npos);
+}
+
+TEST(SchoolDiaryTest, AddExcuseTest) {
+    SchoolDiary d;
+    Parent p("PUser", "Ppass", "Ed", "White");
+    Student s("StExUser", "StExPass", "Max", "Payne", 0);
+    d.addParent(p);
+    d.addStudent(s);
+    auto* foundP = d.findParentByUsername("PUser");
+    auto* foundS = d.findStudentByUsername("StExUser");
+    Excuse e{"Was sick", "03.02.2025", foundP};
+    foundP->addExcuse(foundS, e);
+    EXPECT_TRUE(foundS->getExcusesInfo().find("Was sick") != std::string::npos);
+}
+
+TEST(SchoolDiaryTest, AssignParentChildTest) {
+    SchoolDiary d;
+    Parent p("SomeParent", "Pass", "Anna", "Doe");
+    Student s("ChUser", "ChPass", "Child", "Doe", 0);
+    d.addParent(p);
+    d.addStudent(s);
+    auto* foundP = d.findParentByUsername("SomeParent");
+    auto* foundS = d.findStudentByUsername("ChUser");
+    foundS->setParent(foundP);
+    foundP->addChild(foundS);
+    EXPECT_FALSE(foundP->children.empty());
+    EXPECT_EQ(foundP->children.front(), foundS);
+}
+
+TEST(SchoolDiaryTest, AssignStudentTeacherTest) {
+    SchoolDiary d;
+    Teacher t("TUser", "TPass", "Richard", "Roe", "Biology");
+    Student s("SUser", "SPass", "Aria", "Stark", 0);
+    d.addTeacher(t);
+    d.addStudent(s);
+    auto* foundT = d.findTeacherByUsername("TUser");
+    auto* foundS = d.findStudentByUsername("SUser");
+    foundT->addStudent(foundS);
+    EXPECT_FALSE(foundT->students.empty());
+    EXPECT_EQ(foundT->students.front(), foundS);
+}
+
 int main(int argc, char** argv) {
+    // Inicjowanie Google Test
+    ::testing::InitGoogleTest(&argc, argv);
+
+    // Jeśli uruchomiono z argumentem "test", odpalamy testy zamiast główną aplikację
+    if (argc > 1 && std::string(argv[1]) == "test") {
+        return RUN_ALL_TESTS();
+    }
+    
     try {
         diary.loadFromFile("database.txt");
         diary.loadAssignmentsFromDatabase("database.txt");

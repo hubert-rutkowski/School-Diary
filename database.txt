@@ -8,11 +8,13 @@ Student3 123 Henryk Wielbłąd 3
 Student4 123 Janek Kokos 4
 Oceny:
 1 3 10.01.2025 Teacher1 PE
+1 5 25.01.2025 Teacher1 PE
 2 2 23 Teacher1 PE
 2 1 20.01.2025 Teacher1 PE
 2 1 25.01.2025 Teacher1 PE
 2 4 23.01.2025 Teacher2 Fizyka
 Notatki:
+1 Witam 22.01.2025 Teacher1
 Usprawiedliwienia:
 1 Choroba 21.01.2025 
 1 Zepsuty_tramwaj 21.01.2025 
